@@ -95,10 +95,21 @@ exports.uploadScreenshot = function(req, res, next){
     });
 }
 
+
+
 exports.upload = function(){
     this.uploadScreenshot;
     res.end('uploaded');
 }
+
+
+
+exports.diffImage = function(req, res, next){
+    
+}
+
+
+
 
 module.exports = exports;
 

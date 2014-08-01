@@ -23,15 +23,8 @@ app.use(multer({dest:'./public/images'}));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-mongoose.connect('mongodb://localhost/data/db')
-mongoose.connection.on('open', function(){
-
-
-router.route('/screenshot')
-    .post(screenshotController.upload);
-});
-
-
+mongoose.connect('mongodb://localhost/data/db');
+// mongoose.connection.on('open', function(){
 
 
 var saucelabs = require('saucelabs');
@@ -45,6 +38,7 @@ var sauceAuth = {
 var myAccount = new saucelabs(sauceAuth);
 var sauceBaseUrl = 'https://' + sauceAuth.username + ':' + sauceAuth.password + '@saucelabs.com/rest/v1/' + sauceAuth.username + '/jobs/';
 var imagesPath = './public/images/'
+
 
 router.route('/saucelabs')
     .all(function(req,res,next){
@@ -66,11 +60,13 @@ router.route('/saucelabs')
             };
 
             // Iterate through each test up to bottleneck
-            var bottleneck = 20;
-            for (var k = 0 ; k < (Math.min(bottleneck || 20, jobs.length)); k++) {
+            var bottleneck = 1,
+                limit = Math.min(bottleneck || 20, jobs.length);
+
+            for (var k = 0 ; k < limit; k++) {
 
                 //If test is done running, collect screenshots. Otherwise, keep running to collect other tests
-                if (jobs[k].status == 'complete'){
+                if (jobs[k].status === 'complete'){
 
                     assetsUrl = sauceBaseUrl + jobs[k].id + '/assets/';
 
@@ -83,36 +79,43 @@ router.route('/saucelabs')
                         for (var m = 0; m < assets.screenshots.length; m++) {
 
                             imageName = assets.screenshots[m];
-                            var path = imagesPath + k + m + imageName;
+                            var path = imagesPath + jobs[k].start_time + imageName;
 
-                            request.get(assetsUrl + imageName).pipe(fs.createWriteStream(path));
-                            console.log('piped to ' + path);
+                            var file = fs.createWriteStream(path);
+                            file.on('finish', function() {
+                                console.log('piped to ' + path);
 
-                            //Add screenshot into MongoDB
-                            req = {
-                                files:{
-                                    testName: jobs[k].name,
-                                    image: {
-                                        path: path,
-                                        name: imageName,
-                                        mimetype: 'image/png',
-                                        encoding: '7bit'
-                                    },
-                                    browser: jobs[k].browser,
-                                    browserVersion: jobs[k].browser_short_version,
-                                    os: jobs[k].os,
-                                    creationDate: jobs[k].creation_time,
-                                    passed: jobs[k].passed
-                                }
-                            }
-                            screenshotController.uploadScreenshot(req, res);
+                                req = {
+                                    files:{
+                                        testName: jobs[k].name,
+                                        image: {
+                                            path: path,
+                                            name: imageName,
+                                            mimetype: 'image/png',
+                                            encoding: '7bit'
+                                        },
+                                        browser: jobs[k].browser,
+                                        browserVersion: jobs[k].browser_short_version,
+                                        os: jobs[k].os,
+                                        creationDate: jobs[k].creation_time,
+                                        passed: jobs[k].passed
+                                    }
+                                };
+
+                                //Add screenshot into MongoDB
+                                screenshotController.uploadScreenshot(req, res);
+                            });
+
+                            request.get(assetsUrl + imageName).pipe(file);
                         }
                     })
                 }
             }
-        });
-        res.send('Call Ended.');
+        })
+        res.send('Files Downloaded');
     })
+    //POST Screenshot up to Difflow directly
+    .post(screenshotController.upload);
 
 app.use('/', router);
 
