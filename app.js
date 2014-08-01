@@ -5,10 +5,12 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var multer = require('multer');
 var mongoose = require('mongoose');
+var fs = require('fs');
 
 var app = express();
 var router = express.Router();
 
+var screenshotController = require('./controllers/screenshot');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -25,25 +27,24 @@ mongoose.connect('mongodb://localhost/data/db')
 mongoose.connection.on('open', function(){
 
 
-var screenshotController = require('./controllers/screenshot');
-
 router.route('/screenshot')
-    .post(screenshotController.uploadScreenshot);
+    .post(screenshotController.upload);
 });
 
 
 
 
-var saucelabs = require('./SauceLabs');
-var sauceUsername = 'zhawtof';
-var saucePassword = '502dffd5-0274-4416-b8bf-c623d3be754f';
+var saucelabs = require('saucelabs');
+var request = require('request');
 
-var myAccount = new saucelabs({
-    username: sauceUsername,
-    password: saucePassword
-});
+var sauceAuth = {
+    username: 'zhawtof',
+    password: '502dffd5-0274-4416-b8bf-c623d3be754f'
+}
 
-var https = require('https');
+var myAccount = new saucelabs(sauceAuth);
+var sauceBaseUrl = 'https://' + sauceAuth.username + ':' + sauceAuth.password + '@saucelabs.com/rest/v1/' + sauceAuth.username + '/jobs/';
+var imagesPath = './public/images/'
 
 router.route('/saucelabs')
     .all(function(req,res,next){
@@ -55,25 +56,62 @@ router.route('/saucelabs')
         });
     })
     .get(function(req, res, next) {
-        myAccount.getJobs(function (err, jobs) {
+
         // Get a list of all your jobs
-            for (var k = 0 ; k < (Math.min(1, jobs.length)); k++) {
-                myAccount.showJobAssets(jobs[k].id, function(err, assets) {
+        myAccount.getJobs(function (err, jobs) {
 
-                    var str = jobs[k].name + " : ";
-                    for (var m = 0; m < assets.screenshots.length; m++) {
+            if (err) {
+                console.log(err);
+                res.end(err);
+            };
 
-                        str += "\n     " + assets.screenshots[m];
-                        myAccount.getJobAssets(jobs[k].id, assets.screenshots[m], function(err, img){
+            // Iterate through each test up to bottleneck
+            var bottleneck = 20;
+            for (var k = 0 ; k < (Math.min(bottleneck || 20, jobs.length)); k++) {
 
-                            res.json(img);
+                //If test is done running, collect screenshots. Otherwise, keep running to collect other tests
+                if (jobs[k].status == 'complete'){
 
-                        })
-                    }
-                    console.log(str);
-                })
+                    assetsUrl = sauceBaseUrl + jobs[k].id + '/assets/';
+
+                    //Get a list of each jobs assets
+                    request.get(assetsUrl, function(err, response, assets){
+
+                        assets = JSON.parse(assets);
+
+                        //Get each screenshot from given job
+                        for (var m = 0; m < assets.screenshots.length; m++) {
+
+                            imageName = assets.screenshots[m];
+                            var path = imagesPath + k + m + imageName;
+
+                            request.get(assetsUrl + imageName).pipe(fs.createWriteStream(path));
+                            console.log('piped to ' + path);
+
+                            //Add screenshot into MongoDB
+                            req = {
+                                files:{
+                                    testName: jobs[k].name,
+                                    image: {
+                                        path: path,
+                                        name: imageName,
+                                        mimetype: 'image/png',
+                                        encoding: '7bit'
+                                    },
+                                    browser: jobs[k].browser,
+                                    browserVersion: jobs[k].browser_short_version,
+                                    os: jobs[k].os,
+                                    creationDate: jobs[k].creation_time,
+                                    passed: jobs[k].passed
+                                }
+                            }
+                            screenshotController.uploadScreenshot(req, res);
+                        }
+                    })
+                }
             }
         });
+        res.send('Call Ended.');
     })
 
 app.use('/', router);

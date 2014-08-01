@@ -9,10 +9,11 @@ var screenshotTimelineSchema = new Schema({
         type: String,
     },
     screenshots: {
-        type: [Schema.ObjectId],
+        type: [{type: Schema.ObjectId, ref: 'Screenshot'}],
     },
     baselineScreenshot: {
         type: Schema.ObjectId,
+        ref: 'Screenshot'
     },
     baselineLastChanged: {
         type: Date,
@@ -21,7 +22,7 @@ var screenshotTimelineSchema = new Schema({
     os: String,
     browser: {
         type: String,
-        enum: ['chrome', 'firefox', 'internet explorer', 'phantomjs']
+        enum: ['googlechrome', 'firefox', 'internet explorer', 'phantomjs']
     },
     browserVersion: String,
     sauceLabs: {
@@ -33,16 +34,29 @@ var screenshotTimelineSchema = new Schema({
     },
     testLastRun: {
         type: Date,
+        default: Date.now
     }
 });
 
 var ScreenshotTimeline = mongoose.model('ScreenshotTimeline', screenshotTimelineSchema);
 
 
-exports.saveTimeline = function(newScreenshot, err){
-    var query = {testName: newScreenshot.screenshotName}
+exports.saveTimeline = function(newScreenshot, res, err){
+
+    console.log('checking for timeline');
+
+    var query = {
+        testName: newScreenshot.testName, 
+        screenshotName: newScreenshot.screenshotName, 
+        browser: newScreenshot.browser, 
+        browserVersion: newScreenshot.browserVersion,
+        os: newScreenshot.os
+    }
     ScreenshotTimeline.findOne(query, function(err, timeline){
-        if (err) throw err;
+        if (err) {
+            console.log('ScreenshotTimeline Query Error');
+            throw new Error('ScreenshotTimeline Query Error');
+        };
 
         console.log('Query find the timeline? ...' + !!timeline);
 
@@ -50,19 +64,36 @@ exports.saveTimeline = function(newScreenshot, err){
 
             console.log('timeline does not exist');
 
-            var newScreenshotTimeline = new ScreenshotTimeline();
-            newScreenshotTimeline.testName = newScreenshot.screenshotName;
-            newScreenshotTimeline.screenshots = [newScreenshot._id];        
-            newScreenshotTimeline.save(function(err,doc){
-                if (err){
-                    console.log(err);
-                    res.json(err);
+            ScreenshotTimeline.create(
+                {
+                    testName: newScreenshot.testName,
+                    screenshotName: newScreenshot.screenshotName,
+                    screenshots: [newScreenshot._id],
+                    browser: newScreenshot.browser,
+                    browserVersion: newScreenshot.browserVersion,
+                    os: newScreenshot.os,
+                    testLastRun: newScreenshot.createdDate,
+                    dateCreated: newScreenshot.createdDate,
+                    baseline: newScreenshot._id
+                }, 
+                function(err,doc){
+                    if (err){
+                        console.log(err);
+                        res.end(err);
+                    }
+                    console.log('saved timeline');
                 }
-                console.log('saved timeline');
-            })
+            )
+
         } else {
-            var update = { $addToSet: { screenshots: newScreenshot._id }, $currentDate: { testLastRun: true } }
-            ScreenshotTimeline.findOneAndUpdate(query, update);
+            var info = { $addToSet: { screenshots: newScreenshot._id }, $currentDate: { testLastRun: true } };
+            timeline.update(info, null, function(err, numberAffected, raw){
+                if (err || numberAffected > 1){
+                    console.log(err);
+                    console.log(numberAffected + ' timelines affected.');
+                    res.end(err);
+                }
+            });
             console.log('updated timeline');
         }
     });
