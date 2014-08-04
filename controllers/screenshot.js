@@ -1,46 +1,7 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
-var ObjectId = mongoose.Types.ObjectId;
-
-var screenshotSchema = new Schema({
-    testName: {
-        type: String,
-    },
-    screenshotName: {
-        type: String,
-    },
-    screenshotImage: {
-        image: {
-            type: Buffer
-        },
-        encoding: {
-            type: String
-        },
-        contentType: {
-            type: String
-        }
-    },
-    browser: {
-        type: String
-    },
-    browserVersion: {
-        type: String
-    },
-    os: {
-        type: String
-    },
-    createdDate: {
-        type: Date
-    },
-    functionalTestPassed: {
-        type: Boolean
-    }
-})
-var Screenshot = mongoose.model('Screenshot', screenshotSchema);
+var Screenshot = require('../models/Screenshot');
+var screenshotTimeline = require('./screenshotTimeline');
 
 var fs = require('fs');
-
-screenshotTimeline = require('./screenshotTimeline');
 
 exports.uploadScreenshot = function(req, res, next){
 
@@ -69,8 +30,8 @@ exports.uploadScreenshot = function(req, res, next){
                     testName: req.files.testName,
                     screenshotName: req.files.image.name,
                     screenshotImage: {
+                        path: req.files.image.path,
                         image: fs.readFileSync(req.files.image.path),
-                        encoding: req.files.image.encoding,
                         contentType: req.files.image.mimetype
                     },
                     browser: req.files.browser,
@@ -104,9 +65,6 @@ exports.upload = function(){
 
 
 
-exports.diffImage = function(req, res, next){
-    
-}
 
 
 

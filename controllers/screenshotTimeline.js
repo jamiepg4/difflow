@@ -1,45 +1,37 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+var ScreenshotTimeline = require('../models/ScreenshotTimeline');
+var Screenshot = require('../models/Screenshot');
+var DiffImage = require('../models/DiffImage');
 
-var screenshotTimelineSchema = new Schema({
-    testName: {
-        type: String,
-    },
-    screenshotName: {
-        type: String,
-    },
-    screenshots: {
-        type: [{type: Schema.ObjectId, ref: 'Screenshot'}],
-    },
-    baselineScreenshot: {
-        type: Schema.ObjectId,
-        ref: 'Screenshot'
-    },
-    baselineLastChanged: {
-        type: Date,
-        default: Date.now
-    },
-    os: String,
-    browser: {
-        type: String,
-        enum: ['googlechrome', 'firefox', 'internet explorer', 'phantomjs']
-    },
-    browserVersion: String,
-    sauceLabs: {
-        type: Boolean,
-    },
-    dateCreated: {
-        type: Date,
-        default: Date.now
-    },
-    testLastRun: {
-        type: Date,
-        default: Date.now
+var resemble = require('node-resemble').resemble;
+var fs = require('fs');
+
+function diffImage(testImage, res, next){
+    console.log('diffing image');
+
+    var query = {
+        testName: testImage.testName, 
+        screenshotName: testImage.screenshotName, 
+        browser: testImage.browser, 
+        browserVersion: testImage.browserVersion,
+        os: testImage.os
     }
-});
+    ScreenshotTimeline.findOne(query, function(err, timeline){
+        Screenshot.findById(timeline.baselineScreenshot, function(err, shot){
+            var baselineImage = shot.screenshotImage.path;
+            console.log(baselineImage);
+            console.log(testImage);
+            console.log('Baseline ' + typeof(fs.readFile(baselineImage)));
+            console.log('Test Image ' + typeof(testImage));
+            console.log(typeof(fs.readFile(baselineImage)) == typeof(testImage))
+            var diff = resemble(fs.readFile(baselineImage)).compareTo(testImage).onComplete(function(data){
+                console.log('image diffed')
+                console.log(data);
+            });
+        });
+    });
+}
 
-var ScreenshotTimeline = mongoose.model('ScreenshotTimeline', screenshotTimelineSchema);
-
+exports.diffImage = diffImage;
 
 exports.saveTimeline = function(newScreenshot, res, err){
 
@@ -74,7 +66,7 @@ exports.saveTimeline = function(newScreenshot, res, err){
                     os: newScreenshot.os,
                     testLastRun: newScreenshot.createdDate,
                     dateCreated: newScreenshot.createdDate,
-                    baseline: newScreenshot._id
+                    baselineScreenshot: newScreenshot._id
                 }, 
                 function(err,doc){
                     if (err){
@@ -82,8 +74,11 @@ exports.saveTimeline = function(newScreenshot, res, err){
                         res.end(err);
                     }
                     console.log('saved timeline');
+                    console.log('doc');
                 }
             )
+
+            diffImage(newScreenshot);
 
         } else {
             var info = { $addToSet: { screenshots: newScreenshot._id }, $currentDate: { testLastRun: true } };
@@ -95,6 +90,8 @@ exports.saveTimeline = function(newScreenshot, res, err){
                 }
             });
             console.log('updated timeline');
+
+            diffImage(newScreenshot);
         }
     });
 }
