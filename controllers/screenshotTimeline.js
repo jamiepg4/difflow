@@ -2,7 +2,8 @@ var ScreenshotTimeline = require('../models/ScreenshotTimeline');
 var Screenshot = require('../models/Screenshot');
 var DiffImage = require('../models/DiffImage');
 
-var resemble = require('node-resemble').resemble;
+var path = require('path');
+var gm = require('gm');
 var fs = require('fs');
 
 function diffImage(testImage, res, next){
@@ -16,16 +17,22 @@ function diffImage(testImage, res, next){
         os: testImage.os
     }
     ScreenshotTimeline.findOne(query, function(err, timeline){
-        Screenshot.findById(timeline.baselineScreenshot, function(err, shot){
-            var baselineImage = shot.screenshotImage.path;
-            console.log(baselineImage);
-            console.log(testImage);
-            console.log('Baseline ' + typeof(fs.readFile(baselineImage)));
-            console.log('Test Image ' + typeof(testImage));
-            console.log(typeof(fs.readFile(baselineImage)) == typeof(testImage))
-            var diff = resemble(fs.readFile(baselineImage)).compareTo(testImage).onComplete(function(data){
-                console.log('image diffed')
-                console.log(data);
+        Screenshot.findById(timeline.baselineScreenshot, function(err, baseShot){
+
+            baselineImagePath = path.join(path.dirname(__dirname), path.normalize(baseShot.screenshotImage.path))
+            testImagePath = path.join(path.dirname(__dirname), path.normalize(testImage.screenshotImage.path))
+
+            console.log(baselineImagePath);
+            console.log(testImagePath);
+
+            var options = {
+                file: './public/images/diffs/' + timeline.screenshotName // required
+            };
+            gm.compare(baselineImagePath, testImagePath, options, function (err, isEqual, equality, raw) {
+                if (err) throw err;
+                console.log('The images are equal: %s', isEqual);
+                console.log('Actual equality: %d', equality)
+                console.log('Raw output was: %j', raw);
             });
         });
     });
@@ -77,8 +84,6 @@ exports.saveTimeline = function(newScreenshot, res, err){
                     console.log('doc');
                 }
             )
-
-            diffImage(newScreenshot);
 
         } else {
             var info = { $addToSet: { screenshots: newScreenshot._id }, $currentDate: { testLastRun: true } };
