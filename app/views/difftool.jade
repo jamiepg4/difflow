@@ -1,0 +1,23 @@
+﻿extends layout
+
+block content
+  
+  a(href="/") Back to Tests
+  hr
+
+  block diff_images
+    .row
+      .col-md-4 
+        h3 baseline
+        a(href=baseline)
+          img.compare(src= baseline)
+      .col-md-4 
+        h3 diff
+        a(href=diff)
+          img.compare(src= diff)
+      .col-md-4 
+        h3 test image
+        a(href=testPath)
+          img.compare(src= testPath)
+        p
+        button.btn.btn-block.btn-primary#setBaseline(type='submit', value='Submit', data-test-id=testId, data-timeline-id=timelineId) Set as New Baseline

@@ -1,0 +1,37 @@
+﻿extends layout
+
+block content
+  
+  block upload
+    form.form-inline(role='form', method='post', enctype='multipart/form-data', action='server/upload')
+      .col-md-10
+        .form-group.col-md-6
+          label.col-md-3 Baseline
+          .col-md-3
+            input.form-control(type='file', name='base')
+        .form-group.col-md-6
+          label.col-md-3 Test Image
+          .col-md-3
+            input.form-control(type='file', name='test')
+      .form-group.col-md-2
+        .col-md-12
+          input.btn.btn-primary.btn-block(type='submit', value = 'Submit')
+
+  hr
+  table.table.table-hover
+    thead
+      tr
+        th TEST
+        th SCREENSHOT
+        th Visual Regression Test
+    tbody
+      each job in info
+        tr(data-job-id=job.id)
+          td=job.testName
+          td
+            code=job.screenshotName
+          td
+            if job.visualTest < threshold
+              span.label.label-success=job.visualTest + '%'
+            else 
+              span.label.label-danger=job.visualTest + '%'
