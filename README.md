@@ -1,54 +1,62 @@
 #Difflow
+####A Visual Regression Testing Tool using Sauce Labs
 
-Created by Zach Hawtof
+Created for __[Practice Fusion](http://www.practicefusion.com/)__
 
-[TOC]
+---
+##Prep:
 
-##Server:
+- ####[Download GraphicsMagick](http://www.graphicsmagick.org/)
+- ####[Download MongoDB](http://www.mongodb.org/downloads)
+- ####[Register for a Sauce Labs Account](http://saucelabs.com)
+- ####Ensure User Limit above 256.
+If on a Mac or Linux system use `ulimit -n 1024` to set to 1024 synchronous read files.
 
-The Server side API of Difflow app.
+####Configurations
+1. Open the `difflow/config/config.js` file and change the *development* keys for `sauceAuth` to your username and access key from Sauce Labs.
+2. Change your `equalityThreshold` to a value of your choosing. *This number is a decimal, not a percent. Must be <1.*
 
+####Compile
+Move into the difflow folder and run the command `grunt` from the console to start the application
 
-Things to make sure:
-raise your ulimit to 1024. Originally at 256
-download GraphicsMagick without getting a Trojan.
-sometimes python is necessary
-can't differentiate between environments
-MongoDB downloaded
+####MongoDB
+Start the database with `mongod`. See [Getting Started](http://docs.mongodb.org/manual/tutorial/getting-started/) for reference.
 
+####Start Difflow Server
+Open or refresh the url or whatever port you are using `localhost:3000/server/start` to start the process of the server. **Do not refresh multiple times.** Check your console to ensure it is running.
 
-###Features:
+####Sauce Labs
+Run automated tests on Sauce Labs. In order to see diffed images, must have at least 2 runs of the same test
+######_Take Note_
+- Difflow cannot differentiate between environments
+- Will not work with most manual testing
+---
 
-####SauceLabs
-- Get list of jobs
-- Download assets per job
-####UI
-- Receive requests for DiffJob from UI
-- Send updates after each new Job is properly stored and recorded
-- Receive images uploaded directly through UI
-####Mongo
-- Read and Write to MongoDB
-####AWS
-- Store photos on AWS servers
-####Redis?
-- Continually running with queue for jobs to be pulled and diffed
+##GUI
+####Test Index
+- Navigate to`localhost:3000`
+- Clicking on one of the tests will lead to difftool
+- Uploading two photos in the upload tool will create ad hoc  job that will not be saved into MongoDB. *__Images must be same height and width.__*
 
+####Difftool
+- Side-by-side comparison of test image, baseline, and diff image
+- Clicking __Set as New Baseline__ button will make test image new baseline for future tests
+
+---
+
+##Codebase
 ###Models:
 ####Screenshot
-- Knows if Baseline
-- Has Path to Image
+One instance of an image.
+
 ####Timeline
-- Ref to `Baseline` (Screenshot) and to `Screenshots` ([Screenshots])
-- Knows Configuration Data
+Collection of Screenshots for one test, one configuration, and one step within the test.
+
 ####SauceJob
-- All Info from Sauce Labs API call
-- Knows Configuration Data
+One instance of a test run on sauce.
+
 ####DiffJob
-- Points to DiffImage
-- Ref to `Baseline` (Screenshot) and `TestImage` (Screenshot)
+One completed diff image, its equality, and its corresponponding baseline and testImage.
 
-##UI:
-
-The Frontend side API of Difflow app.
 
 
