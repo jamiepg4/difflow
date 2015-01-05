@@ -13,7 +13,7 @@ var config = {
     waitTime: 60000,
     sauceAuth: {
       username: 'zhawtof',
-      password: '502dffd5-0274-4416-b8bf-c623d3be754f'
+      password: 'F593D327-D621-45DB-9962-FD3CEB1F1A27'
     },
     placeholderImage: 'http://img1.wikia.nocookie.net/__cb20111214222745/southpark/images/archive/9/9e/20140414233457!Eric_cartman.png',
     imagesPath: './public/img/',
